@@ -3,14 +3,15 @@ LOCAL_CFLAGS=-Wall -Werror
 
 obj-m += kdsinsp.o
 
-all: kdsinsp.c
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
+KVERSION = $(shell uname -r)
 
+all:
+	make -C /lib/modules/$(KVERSION)/build M=$(PWD) modules
 clean:
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
+	make -C /lib/modules/$(KVERSION)/build M=$(PWD) clean
 
 load:
-	sudo insmod kdsinsp.ko
+	sudo insmod kdsinsp.ko param='"11 44 22 33 5"'
 
 unload:
 	sudo rmmod kdsinsp

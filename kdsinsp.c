@@ -326,10 +326,24 @@ static void linked_list(void)
     }
 }
 
-static int __init kds_init(void)
+void getOption(char **option, char **param)
+{
+    int i = 0;
+    for (i = 0;; i++)
+    {
+        if ((*param)[i] == ' ')
+            break;
+    }
+
+    (*option) = kmalloc(i + 1, GFP_KERNEL);
+    memcpy((*option), (*param), i);
+    // strcpy((*param), (*param) + i + 1);
+    printk(KERN_INFO "Option: %s ;Param: %s\n", (*option), (*param));
+}
+
+void do_basic(void)
 {
     char *token, *cursor;
-    printk(KERN_INFO "Module loaded ...\n");
 
     if (param && (length = strlen(param)) && (cursor = kmalloc(length + 1, GFP_KERNEL)) && strncpy(cursor, param, length)) // copiaza in cursor lista de parametri
     {
@@ -350,6 +364,35 @@ static int __init kds_init(void)
         xarray();
         bitmap();
     }
+    else
+    {
+        printk(KERN_INFO "%s\n", "No valid program arguments passed to the kernel module!");
+    }
+}
+
+void do_process(void)
+{
+}
+
+void do_IO(void)
+{
+}
+
+static int __init kds_init(void)
+{
+    char *option;
+    printk(KERN_INFO "Module loaded ...\n");
+
+    getOption(&option, &param);
+
+    if (strcmp(option, "--basic") == 0 || strcmp(option, "-b") == 0)
+        do_basic();
+
+    if (strcmp(option, "--process") == 0 || strcmp(option, "-p") == 0)
+        do_process();
+
+    if (strcmp(option, "--dev") == 0 || strcmp(option, "-d") == 0)
+        do_IO();
 
     return 0;
 }
