@@ -10,6 +10,10 @@
 #include <linux/xarray.h>
 #include <linux/bitmap.h>
 
+#include <linux/fs.h>
+#include <linux/namei.h>
+#include <linux/fdtable.h>
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("MTA Students");
 MODULE_DESCRIPTION("Kernel Module For Data Structure Inspection");
@@ -69,7 +73,7 @@ static void bitmap(void)
     {
         printk(KERN_INFO "Begin bitmap test:\n");
 
-        while ((token = strsep(&cursor, " "))) // pentru fiecare intreg dat ca parametru
+        while ((token = strsep(&cursor, " \t\n"))) // pentru fiecare intreg dat ca parametru
         {
             long num;
             int inum, i, c = 0;
@@ -113,7 +117,7 @@ static void xarray(void)
         unsigned long index;
         printk(KERN_INFO "Begin xarray test:\n");
 
-        while ((token = strsep(&cursor, " "))) // pentru fiecare intreg dat ca parametru
+        while ((token = strsep(&cursor, " \n\t"))) // pentru fiecare intreg dat ca parametru
         {
             long num;
             int *new_node;
@@ -183,7 +187,7 @@ static void hash_table(void)
 
         printk(KERN_INFO "Begin hash table test:\n");
 
-        while ((token = strsep(&cursor, " "))) // pentru fiecare intreg dat ca parametru
+        while ((token = strsep(&cursor, " \t\n"))) // pentru fiecare intreg dat ca parametru
         {
             long num;
             struct kds_ht_node *new_node;
@@ -253,7 +257,7 @@ static void rb_tree(void)
     {
         printk(KERN_INFO "Begin red black tree test:\n");
 
-        while ((token = strsep(&cursor, " "))) // pentru fiecare parametru din lista de parametri
+        while ((token = strsep(&cursor, " \n\t"))) // pentru fiecare parametru din lista de parametri
         {
             long num;
             struct kds_rb_node *new_node;
@@ -297,7 +301,7 @@ static void linked_list(void)
     {
         printk(KERN_INFO "Begin linked list test:\n");
 
-        while ((token = strsep(&cursor, " "))) // pentru fiecare element din lista de parametri
+        while ((token = strsep(&cursor, " \n\t"))) // pentru fiecare element din lista de parametri
         {
             long num;
             struct kds_linked_list *linked_list;
@@ -326,28 +330,13 @@ static void linked_list(void)
     }
 }
 
-void getOption(char **option, char **param)
-{
-    int i = 0;
-    for (i = 0;; i++)
-    {
-        if ((*param)[i] == ' ')
-            break;
-    }
-
-    (*option) = kmalloc(i + 1, GFP_KERNEL);
-    memcpy((*option), (*param), i);
-    // strcpy((*param), (*param) + i + 1);
-    printk(KERN_INFO "Option: %s ;Param: %s\n", (*option), (*param));
-}
-
 void do_basic(void)
 {
     char *token, *cursor;
 
     if (param && (length = strlen(param)) && (cursor = kmalloc(length + 1, GFP_KERNEL)) && strncpy(cursor, param, length)) // copiaza in cursor lista de parametri
     {
-        while ((token = strsep(&cursor, " "))) // pentru fiecare element din lista de parametri
+        while ((token = strsep(&cursor, " \t\n"))) // pentru fiecare element din lista de parametri
         {
             long num;
 
@@ -378,21 +367,114 @@ void do_IO(void)
 {
 }
 
+void showFiles(void)
+{
+    //--file nu are un alt parametru -> afiseaza toate fisierele deschise in respectivul moment
+    struct files_struct *current_files = current->files;        // current returns a pointer to the task_struct of the current process
+    struct fdtable *files_table = files_fdtable(current_files); // facem referinta la structura files_struct printr-un macro
+                                                                // takes care of the memory barrier requirements for lock-free dereference
+    int i = 0;
+    char *cwd;
+    struct path files_path;
+    char *buf = (char *)kmalloc(100 * sizeof(char), GFP_KERNEL);
+
+    for (i = 0; files_table->fd[i] != NULL; i++)
+    {
+        files_path = files_table->fd[i]->f_path;            // converteste dentry in nume de cale ASCII
+        cwd = d_path(&files_path, buf, 100 * sizeof(char)); // Convert a dentry into an ASCII path name
+
+        printk(KERN_INFO "Open file with fd %d  %s\n", i, cwd);
+    }
+
+    kfree(buf);
+}
+
+int showFileDetails(char *filePath)
+{
+
+    int error, mod;
+    struct inode *inode;
+    struct path path;
+
+    error = kern_path(filePath, LOOKUP_FOLLOW, &path);
+    if (error != 0)
+    {
+        printk(KERN_INFO "File '%s' isn't open or doesn't exist!\n", filePath);
+        return error;
+    }
+
+    inode = path.dentry->d_inode;
+    printk(KERN_INFO "Print section begin:\n");
+    printk(KERN_INFO "File's inode number:\t\t%lu\n", inode->i_ino);
+    printk(KERN_INFO "File's reference counter:\t\t%d\n", inode->i_count.counter); // cate procese a deschis fisierul
+    printk(KERN_INFO "Seconds from last mtime:\t\t%lld\n", inode->i_mtime.tv_sec); // nr sec de la ultimul mtime
+    printk(KERN_INFO "Seconds from last atime:\t\t%lld\n", inode->i_atime.tv_sec); // nr sec de la ultimul atime
+    printk(KERN_INFO "Seconds from last ctime:\t\t%lld\n", inode->i_ctime.tv_sec); // nr sec de la ultimul ctime
+    printk(KERN_INFO "File's size in bytes:\t\t%lld\n", inode->i_size);            // dimensiunea fisierului in octeti
+    printk(KERN_INFO "File's size in blocks:\t\t%llu\n", inode->i_blocks);         // dimensiunea fisierului in blocuri
+    printk(KERN_INFO "Block's size in bites:\t\t%d\n", inode->i_blkbits);          // dimensiunea blocului in bites
+    printk(KERN_INFO "Print section end.\n");
+
+    mod = inode->i_mode;
+
+    // TO DO: investigheaza structura inode si afiseaza cat mai multe informatii UTILE!
+    return 0;
+    // super_block *sb = kmalloc(sizeof(super_block), GFP_KERNEL);
+}
+
+int do_file(void)
+{
+    int ret = 0;
+    char *token;
+
+    // modulul nu are parametri -> afiseaza toate fisierele deschise din sistem
+    if (param == NULL)
+    {
+        showFiles();
+    }
+    else
+        // parametrul dat este numele unui fisier -> afiseaza informatii despre fisierul respectiv
+        while ((token = strsep(&param, " \t\n")))
+        {
+            if (token == NULL)
+                break;
+            ret = showFileDetails(token);
+            if (ret != 0) // eroare
+                return ret;
+        }
+    return ret;
+}
+
 static int __init kds_init(void)
 {
+    int ret = 0;
     char *option;
     printk(KERN_INFO "Module loaded ...\n");
 
-    getOption(&option, &param);
+    if (param == NULL)
+    {
+        printk(KERN_ERR "%s\n", "No program arguments passed to the kernel module!");
+        return 0;
+    }
+
+    option = (char *)kmalloc(sizeof(char) * 100, GFP_KERNEL);
+    option = strsep(&param, " \n\t");
 
     if (strcmp(option, "--basic") == 0 || strcmp(option, "-b") == 0)
         do_basic();
 
-    if (strcmp(option, "--process") == 0 || strcmp(option, "-p") == 0)
+    else if (strcmp(option, "--process") == 0 || strcmp(option, "-p") == 0)
         do_process();
 
-    if (strcmp(option, "--dev") == 0 || strcmp(option, "-d") == 0)
+    else if (strcmp(option, "--dev") == 0 || strcmp(option, "-d") == 0)
         do_IO();
+
+    else if (strcmp(option, "--file") == 0 || strcmp(option, "-f") == 0)
+    {
+        ret = do_file();
+        // if (ret != 0)
+        //     return ret;
+    }
 
     return 0;
 }
