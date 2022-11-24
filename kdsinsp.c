@@ -359,10 +359,81 @@ void do_basic(void)
     }
 }
 
-void do_process(void)
+void showAllProcess(void)
 {
+    struct task_struct* task;
+    size_t process_counter = 0;
+    printk(KERN_INFO " Process \t Pid \n");
+    for_each_process(task)
+    {
+        pr_info(" %s\t\t%d\n", task->comm, task->pid);
+        ++process_counter;
+    }
+    printk(KERN_INFO " Number of process: %zu\n", process_counter);
 }
 
+int showProcessByPid(int pid)
+{
+
+    struct task_struct* task;
+    struct task_struct* parent;
+    struct pid* pid_struct;
+
+    pid_struct = find_get_pid(pid);
+    task = pid_task(pid_struct, PIDTYPE_PID);
+
+    if (task == NULL)
+    {
+        printk(KERN_INFO "Process %d not found! \n\n", pid);
+        return -1;
+    }
+    parent = task->parent;
+
+    printk(KERN_INFO "\nProcess name : %s", task->comm);
+    printk(KERN_INFO "Process pid: %d\n", task->pid);
+    printk(KERN_INFO "Process ppid: %d", parent->pid);
+    printk(KERN_INFO "Process vid: %d\n", (int)task_pid_vnr(task));
+    printk(KERN_INFO "Process nice value: %d", (int)task_nice(task));
+    printk(KERN_INFO "Process group : %d", (int)task_tgid_nr(task));
+    printk(KERN_INFO "current process: %s, PID: %d\n", task->comm, task->pid);
+
+    do
+    {
+        task = task->parent;
+        printk(KERN_INFO "\t|___parent process: %s, PID: %d\t", task->comm, task->pid);
+
+    } while (task->pid != 0);
+
+    return 0;
+}
+
+int do_process(void)
+{
+
+    int ret = 0;
+    long pid;
+    char* token;
+
+    printk(KERN_INFO "%s\n", param);
+    if (param == NULL)
+    {
+        // daca modul nu  are nicun parametru va afisa toate procesele curente
+        showAllProcess();
+    }
+    else
+    {
+        // parametrul dat este pidul unui proces -> afiseaza informatii despre procesul respectiv
+        while ((token = strsep(&param, " \t\n")))
+        {
+            if (token == NULL)
+                break;
+            ret = kstrtol(token, 10, &pid);
+            printk(KERN_ALERT "\tPROCESS:\n");
+            ret = showProcessByPid(pid);
+        }
+    }
+    return 0;
+}
 void do_IO(void)
 {
 }
@@ -392,7 +463,7 @@ void showFiles(void)
 int showFileDetails(char *filePath)
 {
 
-    int error, mod;
+    int error;
     struct inode *inode;
     struct path path;
 
@@ -404,8 +475,13 @@ int showFileDetails(char *filePath)
     }
 
     inode = path.dentry->d_inode;
-    printk(KERN_INFO "Print section begin:\n");
-    printk(KERN_INFO "File's inode number:\t\t%lu\n", inode->i_ino);
+
+    printk(KERN_INFO "File name: %s\n", filePath);                                 // numele fisierului
+    printk(KERN_INFO "File's inode number:\t\t%lu\n", inode->i_ino);               // inode number
+    printk(KERN_INFO "User ID:\t\t\t%u\n", inode->i_uid.val);                      // user id
+    printk(KERN_INFO "Group ID:\t\t\t%u\n", inode->i_gid.val);                     // group id
+    printk(KERN_INFO "File's permisions:\t\t%u\n", inode->i_mode);                 // permisiuni de acces
+    printk(KERN_INFO "File's number of hardlinks:\t\t%u\n", inode->i_nlink);       // numarul de hardlink-uri ale fisierului
     printk(KERN_INFO "File's reference counter:\t\t%d\n", inode->i_count.counter); // cate procese a deschis fisierul
     printk(KERN_INFO "Seconds from last mtime:\t\t%lld\n", inode->i_mtime.tv_sec); // nr sec de la ultimul mtime
     printk(KERN_INFO "Seconds from last atime:\t\t%lld\n", inode->i_atime.tv_sec); // nr sec de la ultimul atime
@@ -413,13 +489,8 @@ int showFileDetails(char *filePath)
     printk(KERN_INFO "File's size in bytes:\t\t%lld\n", inode->i_size);            // dimensiunea fisierului in octeti
     printk(KERN_INFO "File's size in blocks:\t\t%llu\n", inode->i_blocks);         // dimensiunea fisierului in blocuri
     printk(KERN_INFO "Block's size in bites:\t\t%d\n", inode->i_blkbits);          // dimensiunea blocului in bites
-    printk(KERN_INFO "Print section end.\n");
 
-    mod = inode->i_mode;
-
-    // TO DO: investigheaza structura inode si afiseaza cat mai multe informatii UTILE!
     return 0;
-    // super_block *sb = kmalloc(sizeof(super_block), GFP_KERNEL);
 }
 
 int do_file(void)
@@ -464,17 +535,13 @@ static int __init kds_init(void)
         do_basic();
 
     else if (strcmp(option, "--process") == 0 || strcmp(option, "-p") == 0)
-        do_process();
+        ret=do_process();
 
     else if (strcmp(option, "--dev") == 0 || strcmp(option, "-d") == 0)
         do_IO();
 
     else if (strcmp(option, "--file") == 0 || strcmp(option, "-f") == 0)
-    {
         ret = do_file();
-        // if (ret != 0)
-        //     return ret;
-    }
 
     return 0;
 }
