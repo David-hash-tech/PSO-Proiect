@@ -1,0 +1,42 @@
+#!/bin/bash
+MODULE=${0##*/}
+path="/home/david/Kernel/skeleton/Project/test.c"
+
+function checkModule
+{
+  if [[ -z `lsmod | grep "$MODULE"` ]] 
+  then
+    echo 0
+  else
+    echo 1
+  fi
+}
+
+if [[ $# -eq 0 ]]
+then
+  echo "WARNING: The program does not have parameters!"
+  exit 1;
+fi
+
+if [[ $(checkModule) -eq 0 ]]
+then
+  sudo insmod ${path%/*}/$MODULE.ko 
+  echo "Module has been loaded!"
+else
+  echo "Module is already loaded!"
+fi
+
+if [[ ! -e /dev/kds ]]
+then
+  sudo mknod /dev/kds c 64 0
+  echo "File \"/dev/kds\" was created succesfully!" 
+fi
+
+if [[ ! -e $path ]]
+then
+  echo "WARNING: The test.c program file was not found at $path"
+else
+  gcc $path -o ${path%.*}
+  (cd ${path%/*} && exec ${path%.*} $@)
+
+fi

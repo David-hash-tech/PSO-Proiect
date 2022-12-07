@@ -1,7 +1,7 @@
 CC=gcc
 LOCAL_CFLAGS=-Wall -Werror
 
-obj-m += kdsinsp.o
+obj-m += kds.o
 
 KVERSION = $(shell uname -r)
 
@@ -11,13 +11,14 @@ clean:
 	make -C /lib/modules/$(KVERSION)/build M=$(PWD) clean
 
 load:
-	sudo insmod kdsinsp.ko param='"11 44 22 33 5"'
+	sudo insmod kds.ko
 
 unload:
-	sudo rmmod kdsinsp
+	sudo rmmod kds
 
 clear:
 	sudo dmesg -c
 
 view:
 	sudo dmesg
+
