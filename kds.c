@@ -14,8 +14,14 @@
 #include <linux/namei.h>
 #include <linux/fdtable.h>
 
+#include <linux/mm.h>
+#include <linux/sched.h>
+#include <linux/pid.h>
+
 #define MYMAJOR 64
+#define SIZE_OF_KB 1024
 #define WR_VALUE _IOW('a', 'a', char *)
+
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("MTA Students");
@@ -274,6 +280,7 @@ static void rb_tree(void)
                 __kds_rb_insert(new_node); // inserez nodul in arbore
             }
         }
+    
 
         cursor2 = rb_first(&kds_rb_root); // luam primul nod al arborelui (in ordinea de sortare)
         while (cursor2)                   // cat timp mai am noduri in arbore
@@ -287,12 +294,11 @@ static void rb_tree(void)
             cursor2 = rb_next(cursor2);   // luam urmatorul nod in ordinea de sortare
             rb_erase(temp, &kds_rb_root); // eliminam nodul prin care tocmai am trecut
             kfree(rb_entry(temp, struct kds_rb_node, node));
-        }
-
+        }    
+            
         kfree(cursor); // eliberam memoria pentru lista de parametri copiata anterior
-
         printk(KERN_INFO "End red black tree test\n");
-    }
+    }   
 }
 
 static void linked_list(void)
@@ -381,6 +387,12 @@ int showProcessByPid(int pid)
     struct task_struct* task;
     struct task_struct* parent;
     struct pid* pid_struct;
+    struct mm_struct *mm;
+    
+    unsigned long vm_size = 0; 
+    unsigned long start_stack = -1;
+    unsigned long end_of_stack = -1; 
+    unsigned long size_of_stack = 0;
 
     pid_struct = find_get_pid(pid);
     task = pid_task(pid_struct, PIDTYPE_PID);
@@ -391,6 +403,7 @@ int showProcessByPid(int pid)
         return -1;
     }
     parent = task->parent;
+    mm=task->mm;
 
     printk(KERN_INFO "\nProcess name : %s", task->comm);
     printk(KERN_INFO "Process pid: %d\n", task->pid);
@@ -398,8 +411,32 @@ int showProcessByPid(int pid)
     printk(KERN_INFO "Process vid: %d\n", (int)task_pid_vnr(task));
     printk(KERN_INFO "Process nice value: %d", (int)task_nice(task));
     printk(KERN_INFO "Process group : %d", (int)task_tgid_nr(task));
-    printk(KERN_INFO "current process: %s, PID: %d\n", task->comm, task->pid);
 
+
+    printk(KERN_INFO "Code-segment-start:   0x%-12lx code-segment-end:   0x%-12lx code-segment-size:   %-10lu kB\n",  
+			  	   mm->start_code,  mm->end_code, (mm->end_code - mm->start_code));
+
+ 	printk(KERN_INFO "Data-segment-start:   0x%-12lx data-segment-end:   0x%-12lx data-segment-size:   %-10lu kB\n",
+               mm->start_data,  mm->end_data, (mm->end_data - mm->start_data));
+
+    printk(KERN_INFO "Stack-segment-start:  0x%lx stack-segment-end:  0x%lx stack-segment-size:  %-10lu kB\n",
+      		   start_stack, end_of_stack, (size_of_stack));
+
+    printk(KERN_INFO "Heap-segment-start:   0x%-12lx heap-segment-end:   0x%-12lx heap-segment-size:   %-10lu kB\n",
+               mm->start_brk,  mm->brk, (mm->brk - mm->start_brk));
+   
+    printk(KERN_INFO "Main-arguments-start: 0x%lx main-arguments-end: 0x%lx main-arguments-size: %-10lu kB\n",
+               mm->arg_start,  mm->arg_end, (mm->arg_end - mm->arg_start));
+   
+    printk(KERN_INFO "Env-variables-start:  0x%lx env-variables-end:  0x%lx env-variables-size:  %-10lu kB\n",
+               mm->env_start,  mm->env_end, (mm->env_end - mm->env_start));
+
+    printk(KERN_INFO "Number of frames used by the process (RSS) is: %lu\n", 4 * get_mm_rss(mm));
+
+    printk(KERN_INFO "Total Virtual Memory used by process is: %lu kB\n", (vm_size / SIZE_OF_KB) );
+
+    printk(KERN_INFO "\nParent tree:\n\n");
+   
     do
     {
         task = task->parent;
@@ -409,6 +446,7 @@ int showProcessByPid(int pid)
 
     return 0;
 }
+
 
 int do_process(void)
 {
@@ -437,6 +475,7 @@ int do_process(void)
     }
     return 0;
 }
+
 void do_IO(void)
 {
 }
@@ -462,6 +501,37 @@ void showFiles(void)
 
     kfree(buf);
 }
+
+void showFilesByPid(long pid)
+{
+    struct task_struct* task;
+    struct pid* pid_struct;
+    struct files_struct* current_files;
+    struct fdtable* files_table;
+     int i = 0;
+     char* cwd;
+    struct path files_path;
+    char* buf = (char*)kmalloc(100 * sizeof(char), GFP_KERNEL);
+
+    pid_struct = find_get_pid(pid);
+    task = pid_task(pid_struct, PIDTYPE_PID);
+
+    current_files = task->files;        // current returns a pointer to the task_struct of the current process
+    files_table = files_fdtable(current_files); // facem referinta la structura files_struct printr-un macro
+                                                                // takes care of the memory barrier requirements for lock-free dereference
+   
+    printk(KERN_INFO "%p",files_table->fd[0]);
+    
+
+    for (i = 0; files_table->fd[i] != NULL; i++)
+    {
+        files_path = files_table->fd[i]->f_path;            // converteste dentry in nume de cale ASCII
+        cwd = d_path(&files_path, buf, 100 * sizeof(char)); // Convert a dentry into an ASCII path name
+
+        printk(KERN_INFO "Open file with fd %d  %s\n", i, cwd);
+    }
+}
+
 
 int showFileDetails(char* filePath)
 {
@@ -500,12 +570,19 @@ int do_file(void)
 {
     int ret = 0;
     char* token;
+    long num=0;
 
     // modulul nu are parametri -> afiseaza toate fisierele deschise din sistem
     if (param == NULL)
     {
         showFiles();
     }
+    if (!kstrtol(param, 10, &num)) // daca nu este intreg il ignora
+               {printk(KERN_INFO "merge");
+                
+               showFilesByPid(num);
+               return 0;
+             }
     else
         // parametrul dat este numele unui fisier -> afiseaza informatii despre fisierul respectiv
         while ((token = strsep(&param, " \t\n")))
@@ -538,6 +615,7 @@ void run_module(void)
 
     else if (strcmp(option, "--file") == 0 || strcmp(option, "-f") == 0)
         ret = do_file();
+    
 
     kfree(param);
     param = NULL;
