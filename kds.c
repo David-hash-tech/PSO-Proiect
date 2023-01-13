@@ -22,12 +22,11 @@
 #define SIZE_OF_KB 1024
 #define WR_VALUE _IOW('a', 'a', char *)
 
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("MTA Students");
 MODULE_DESCRIPTION("Kernel Module For Data Structure Inspection");
 
-static char* param = NULL;
+static char *param = NULL;
 static size_t length = 0;
 
 module_param(param, charp, 0); // parametrii primiti la incarcarea modulului in kernel, de tip charp, cu masca de permisiuni 0
@@ -75,7 +74,7 @@ DECLARE_BITMAP(kds_bitmap, 10); // declar un bitmap cu maxim 10 intregi
 
 static void bitmap(void)
 {
-    char* token, * cursor;
+    char *token, *cursor;
     u8 bit;
 
     if ((cursor = kmalloc(length + 1, GFP_KERNEL)) && strncpy(cursor, param, length)) // copiaza in cursor lista de parametri
@@ -118,18 +117,18 @@ static void bitmap(void)
 
 static void xarray(void)
 {
-    char* token, * cursor;
+    char *token, *cursor;
 
     if ((cursor = kmalloc(length + 1, GFP_KERNEL)) && strncpy(cursor, param, length)) // copiaza in cursor lista de parametri
     {
-        int* result;
+        int *result;
         unsigned long index;
         printk(KERN_INFO "Begin xarray test:\n");
 
         while ((token = strsep(&cursor, " \n\t"))) // pentru fiecare intreg dat ca parametru
         {
             long num;
-            int* new_node;
+            int *new_node;
 
             if (kstrtol(token, 10, &num)) // conversie de la string token la long num in baza 10
                 continue;
@@ -179,8 +178,8 @@ static void xarray(void)
 
 static void hash_table(void)
 {
-    char* token, * cursor;
-    struct kds_hash_table* ht;
+    char *token, *cursor;
+    struct kds_hash_table *ht;
 
     ht = kmalloc(sizeof(*ht), GFP_KERNEL); // aloca memorie pentru hashtable
     if (ht == NULL)
@@ -191,15 +190,15 @@ static void hash_table(void)
     if ((cursor = kmalloc(length + 1, GFP_KERNEL)) && strncpy(cursor, param, length)) // copiaza in cursor lista de parametri
     {
         int bkt;
-        struct hlist_node* temp;
-        struct kds_ht_node* cursor2;
+        struct hlist_node *temp;
+        struct kds_ht_node *cursor2;
 
         printk(KERN_INFO "Begin hash table test:\n");
 
         while ((token = strsep(&cursor, " \t\n"))) // pentru fiecare intreg dat ca parametru
         {
             long num;
-            struct kds_ht_node* new_node;
+            struct kds_ht_node *new_node;
 
             if (kstrtol(token, 10, &num)) // daca un parametru nu este intreg il ignora
                 continue;
@@ -213,8 +212,8 @@ static void hash_table(void)
 
         hash_for_each_safe(ht->table, bkt, temp, cursor2, node)
         {
-            struct hlist_node* temp2;
-            struct kds_ht_node* cursor3;
+            struct hlist_node *temp2;
+            struct kds_ht_node *cursor3;
 
             printk(KERN_INFO "%d\n", cursor2->data);
 
@@ -236,11 +235,11 @@ static void hash_table(void)
 }
 
 // functie care imi insereaza un nod in red black tree
-static void __kds_rb_insert(struct kds_rb_node* rb_node)
+static void __kds_rb_insert(struct kds_rb_node *rb_node)
 {
-    struct rb_node** link = &kds_rb_root.rb_node; // luam nodul corespunzator radacinii arborelui
-    struct rb_node* parent = NULL;
-    struct kds_rb_node* entry;
+    struct rb_node **link = &kds_rb_root.rb_node; // luam nodul corespunzator radacinii arborelui
+    struct rb_node *parent = NULL;
+    struct kds_rb_node *entry;
 
     while (*link)
     {
@@ -259,8 +258,8 @@ static void __kds_rb_insert(struct kds_rb_node* rb_node)
 
 static void rb_tree(void)
 {
-    char* token, * cursor;
-    struct rb_node* cursor2;
+    char *token, *cursor;
+    struct rb_node *cursor2;
 
     if ((cursor = kmalloc(length + 1, GFP_KERNEL)) && strncpy(cursor, param, length)) // copiaza in cursor lista de parametri
     {
@@ -269,7 +268,7 @@ static void rb_tree(void)
         while ((token = strsep(&cursor, " \n\t"))) // pentru fiecare parametru din lista de parametri
         {
             long num;
-            struct kds_rb_node* new_node;
+            struct kds_rb_node *new_node;
 
             if (kstrtol(token, 10, &num)) // daca nu este numar intreg il ignor
                 continue;
@@ -280,13 +279,12 @@ static void rb_tree(void)
                 __kds_rb_insert(new_node); // inserez nodul in arbore
             }
         }
-    
 
         cursor2 = rb_first(&kds_rb_root); // luam primul nod al arborelui (in ordinea de sortare)
         while (cursor2)                   // cat timp mai am noduri in arbore
         {
-            struct rb_node* temp;
-            struct kds_rb_node* entry;
+            struct rb_node *temp;
+            struct kds_rb_node *entry;
 
             entry = rb_entry(cursor2, struct kds_rb_node, node); // retune nodul curent
             printk(KERN_INFO "%d\n", entry->data);               // afisam campul de date din nodul curent
@@ -294,17 +292,17 @@ static void rb_tree(void)
             cursor2 = rb_next(cursor2);   // luam urmatorul nod in ordinea de sortare
             rb_erase(temp, &kds_rb_root); // eliminam nodul prin care tocmai am trecut
             kfree(rb_entry(temp, struct kds_rb_node, node));
-        }    
-            
-        kfree(cursor); // eliberam memoria pentru lista de parametri copiata anterior
-        printk(KERN_INFO "End red black tree test\n");
-    }   
+            kfree(cursor); // eliberam memoria pentru lista de parametri copiata anterior
+
+            printk(KERN_INFO "End red black tree test\n");
+        }
+    }
 }
 
 static void linked_list(void)
 {
-    char* token, * cursor;
-    struct kds_linked_list* cursor2, * temp;
+    char *token, *cursor;
+    struct kds_linked_list *cursor2, *temp;
 
     if ((cursor = kmalloc(length + 1, GFP_KERNEL)) && strncpy(cursor, param, length)) // copiaza in cursor lista de parametri
     {
@@ -313,7 +311,7 @@ static void linked_list(void)
         while ((token = strsep(&cursor, " \n\t"))) // pentru fiecare element din lista de parametri
         {
             long num;
-            struct kds_linked_list* linked_list;
+            struct kds_linked_list *linked_list;
 
             if (kstrtol(token, 10, &num)) // daca nu este intreg il ignora
                 continue;
@@ -341,7 +339,7 @@ static void linked_list(void)
 
 void do_basic(void)
 {
-    char* token, * cursor;
+    char *token, *cursor;
 
     if (param && (length = strlen(param)) && (cursor = kmalloc(length + 1, GFP_KERNEL)) && strncpy(cursor, param, length)) // copiaza in cursor lista de parametri
     {
@@ -370,7 +368,7 @@ void do_basic(void)
 
 void showAllProcess(void)
 {
-    struct task_struct* task;
+    struct task_struct *task;
     size_t process_counter = 0;
     printk(KERN_INFO " Process \t Pid \n");
     for_each_process(task)
@@ -384,14 +382,14 @@ void showAllProcess(void)
 int showProcessByPid(int pid)
 {
 
-    struct task_struct* task;
-    struct task_struct* parent;
-    struct pid* pid_struct;
+    struct task_struct *task;
+    struct task_struct *parent;
+    struct pid *pid_struct;
     struct mm_struct *mm;
-    
-    unsigned long vm_size = 0; 
+
+    unsigned long vm_size = 0;
     unsigned long start_stack = -1;
-    unsigned long end_of_stack = -1; 
+    unsigned long end_of_stack = -1;
     unsigned long size_of_stack = 0;
 
     pid_struct = find_get_pid(pid);
@@ -403,7 +401,7 @@ int showProcessByPid(int pid)
         return -1;
     }
     parent = task->parent;
-    mm=task->mm;
+    mm = task->mm;
 
     printk(KERN_INFO "\nProcess name : %s", task->comm);
     printk(KERN_INFO "Process pid: %d\n", task->pid);
@@ -412,31 +410,30 @@ int showProcessByPid(int pid)
     printk(KERN_INFO "Process nice value: %d", (int)task_nice(task));
     printk(KERN_INFO "Process group : %d", (int)task_tgid_nr(task));
 
+    printk(KERN_INFO "Code-segment-start:   0x%-12lx code-segment-end:   0x%-12lx code-segment-size:   %-10lu kB\n",
+           mm->start_code, mm->end_code, (mm->end_code - mm->start_code));
 
-    printk(KERN_INFO "Code-segment-start:   0x%-12lx code-segment-end:   0x%-12lx code-segment-size:   %-10lu kB\n",  
-			  	   mm->start_code,  mm->end_code, (mm->end_code - mm->start_code));
-
- 	printk(KERN_INFO "Data-segment-start:   0x%-12lx data-segment-end:   0x%-12lx data-segment-size:   %-10lu kB\n",
-               mm->start_data,  mm->end_data, (mm->end_data - mm->start_data));
+    printk(KERN_INFO "Data-segment-start:   0x%-12lx data-segment-end:   0x%-12lx data-segment-size:   %-10lu kB\n",
+           mm->start_data, mm->end_data, (mm->end_data - mm->start_data));
 
     printk(KERN_INFO "Stack-segment-start:  0x%lx stack-segment-end:  0x%lx stack-segment-size:  %-10lu kB\n",
-      		   start_stack, end_of_stack, (size_of_stack));
+           start_stack, end_of_stack, (size_of_stack));
 
     printk(KERN_INFO "Heap-segment-start:   0x%-12lx heap-segment-end:   0x%-12lx heap-segment-size:   %-10lu kB\n",
-               mm->start_brk,  mm->brk, (mm->brk - mm->start_brk));
-   
+           mm->start_brk, mm->brk, (mm->brk - mm->start_brk));
+
     printk(KERN_INFO "Main-arguments-start: 0x%lx main-arguments-end: 0x%lx main-arguments-size: %-10lu kB\n",
-               mm->arg_start,  mm->arg_end, (mm->arg_end - mm->arg_start));
-   
+           mm->arg_start, mm->arg_end, (mm->arg_end - mm->arg_start));
+
     printk(KERN_INFO "Env-variables-start:  0x%lx env-variables-end:  0x%lx env-variables-size:  %-10lu kB\n",
-               mm->env_start,  mm->env_end, (mm->env_end - mm->env_start));
+           mm->env_start, mm->env_end, (mm->env_end - mm->env_start));
 
     printk(KERN_INFO "Number of frames used by the process (RSS) is: %lu\n", 4 * get_mm_rss(mm));
 
-    printk(KERN_INFO "Total Virtual Memory used by process is: %lu kB\n", (vm_size / SIZE_OF_KB) );
+    printk(KERN_INFO "Total Virtual Memory used by process is: %lu kB\n", (vm_size / SIZE_OF_KB));
 
     printk(KERN_INFO "\nParent tree:\n\n");
-   
+
     do
     {
         task = task->parent;
@@ -447,13 +444,12 @@ int showProcessByPid(int pid)
     return 0;
 }
 
-
 int do_process(void)
 {
 
     int ret = 0;
     long pid;
-    char* token;
+    char *token;
 
     printk(KERN_INFO "%s\n", param);
     if (param == NULL)
@@ -482,19 +478,38 @@ void do_IO(void)
 
 void showFiles(void)
 {
-    //--file nu are un alt parametru -> afiseaza toate fisierele deschise in respectivul moment
-    struct files_struct* current_files = current->files;        // current returns a pointer to the task_struct of the current process
-    struct fdtable* files_table = files_fdtable(current_files); // facem referinta la structura files_struct printr-un macro
-                                                                // takes care of the memory barrier requirements for lock-free dereference
     int i = 0;
-    char* cwd;
+    char *cwd;
     struct path files_path;
-    char* buf = (char*)kmalloc(100 * sizeof(char), GFP_KERNEL);
+    char *buf = (char *)kmalloc(100 * sizeof(char), GFP_KERNEL);
 
-    for (i = 0; files_table->fd[i] != NULL; i++)
+    //--file nu are un alt parametru -> afiseaza toate fisierele deschise in respectivul moment
+    struct files_struct *current_files = current->files;        // current returns a pointer to the task_struct of the current process
+    struct fdtable *files_table = files_fdtable(current_files); // facem referinta la structura files_struct printr-un macro
+                                                                // takes care of the memory barrier requirements for lock-free dereference
+
+    if (files_table == NULL)
     {
-        files_path = files_table->fd[i]->f_path;            // converteste dentry in nume de cale ASCII
+        return;
+    }
+
+    for (i = 0;; i++)
+    {
+
+        if (files_table->fd == NULL)
+        {
+            break;
+        }
+        if (files_table->fd[i] == NULL)
+            break;
+
+        files_path = files_table->fd[i]->f_path;
+
+        // converteste dentry in nume de cale ASCII
         cwd = d_path(&files_path, buf, 100 * sizeof(char)); // Convert a dentry into an ASCII path name
+
+        if (cwd == NULL)
+            break;
 
         printk(KERN_INFO "Open file with fd %d  %s\n", i, cwd);
     }
@@ -504,24 +519,23 @@ void showFiles(void)
 
 void showFilesByPid(long pid)
 {
-    struct task_struct* task;
-    struct pid* pid_struct;
-    struct files_struct* current_files;
-    struct fdtable* files_table;
-     int i = 0;
-     char* cwd;
+    struct task_struct *task;
+    struct pid *pid_struct;
+    struct files_struct *current_files;
+    struct fdtable *files_table;
+    int i = 0;
+    char *cwd;
     struct path files_path;
-    char* buf = (char*)kmalloc(100 * sizeof(char), GFP_KERNEL);
+    char *buf = (char *)kmalloc(100 * sizeof(char), GFP_KERNEL);
 
     pid_struct = find_get_pid(pid);
     task = pid_task(pid_struct, PIDTYPE_PID);
 
-    current_files = task->files;        // current returns a pointer to the task_struct of the current process
+    current_files = task->files;                // current returns a pointer to the task_struct of the current process
     files_table = files_fdtable(current_files); // facem referinta la structura files_struct printr-un macro
-                                                                // takes care of the memory barrier requirements for lock-free dereference
-   
-    printk(KERN_INFO "%p",files_table->fd[0]);
-    
+                                                // takes care of the memory barrier requirements for lock-free dereference
+
+    printk(KERN_INFO "%p", files_table->fd[0]);
 
     for (i = 0; files_table->fd[i] != NULL; i++)
     {
@@ -532,12 +546,11 @@ void showFilesByPid(long pid)
     }
 }
 
-
-int showFileDetails(char* filePath)
+int showFileDetails(char *filePath)
 {
 
     int error;
-    struct inode* inode;
+    struct inode *inode;
     struct path path;
 
     error = kern_path(filePath, LOOKUP_FOLLOW, &path);
@@ -569,20 +582,21 @@ int showFileDetails(char* filePath)
 int do_file(void)
 {
     int ret = 0;
-    char* token;
-    long num=0;
+    char *token;
+    long num = 0;
 
     // modulul nu are parametri -> afiseaza toate fisierele deschise din sistem
     if (param == NULL)
     {
         showFiles();
+        return 0;
     }
     if (!kstrtol(param, 10, &num)) // daca nu este intreg il ignora
-               {printk(KERN_INFO "merge");
-                
-               showFilesByPid(num);
-               return 0;
-             }
+    {                              // printk(KERN_INFO "merge");
+
+        showFilesByPid(num);
+        return 0;
+    }
     else
         // parametrul dat este numele unui fisier -> afiseaza informatii despre fisierul respectiv
         while ((token = strsep(&param, " \t\n")))
@@ -599,9 +613,9 @@ int do_file(void)
 void run_module(void)
 {
     int ret = 0;
-    char* option;
+    char *option;
 
-    option = (char*)kmalloc(sizeof(char) * 100, GFP_KERNEL);
+    option = (char *)kmalloc(sizeof(char) * 100, GFP_KERNEL);
     option = strsep(&param, " \n\t");
 
     if (strcmp(option, "--basic") == 0 || strcmp(option, "-b") == 0)
@@ -615,7 +629,6 @@ void run_module(void)
 
     else if (strcmp(option, "--file") == 0 || strcmp(option, "-f") == 0)
         ret = do_file();
-    
 
     kfree(param);
     param = NULL;
@@ -623,22 +636,25 @@ void run_module(void)
     return;
 }
 
-static int driver_open(struct inode* device_file, struct file* instance) {
+static int driver_open(struct inode *device_file, struct file *instance)
+{
     printk("/dev/kds - open was called!\n");
     return 0;
 }
 
-static int driver_close(struct inode* device_file, struct file* instance) {
+static int driver_close(struct inode *device_file, struct file *instance)
+{
     printk("/dev/kds - close was called!\n");
     return 0;
 }
 
 char answer[100];
-static long int driver_modify(struct file* file, unsigned cmd, unsigned long arg) {
+static long int driver_modify(struct file *file, unsigned cmd, unsigned long arg)
+{
     switch (cmd)
     {
     case WR_VALUE:
-        if (copy_from_user(&answer, (char*)arg, sizeof(answer)))
+        if (copy_from_user(&answer, (char *)arg, sizeof(answer)))
             printk("Error copying data from user!\n");
         else
         {
@@ -650,7 +666,7 @@ static long int driver_modify(struct file* file, unsigned cmd, unsigned long arg
         break;
 
         // case RD_VALUE:
-        // 	if(copy_to_user((char *) arg, &answer, sizeof(answer))) 
+        // 	if(copy_to_user((char *) arg, &answer, sizeof(answer)))
         // 		printk("Error copying data to user!\n");
         // 	else
         // 		printk("The answer was copied!\n");
@@ -663,8 +679,7 @@ static struct file_operations fops = {
     .owner = THIS_MODULE,
     .open = driver_open,
     .release = driver_close,
-    .unlocked_ioctl = driver_modify
-};
+    .unlocked_ioctl = driver_modify};
 
 static int __init kds_init(void)
 {
@@ -674,13 +689,16 @@ static int __init kds_init(void)
 
     /* register device nr. */
     retval = register_chrdev(MYMAJOR, "kds", &fops);
-    if (retval == 0) {
+    if (retval == 0)
+    {
         printk("Registered Device number Major: %d, Minor: %d\n", MYMAJOR, 0);
     }
-    else if (retval > 0) {
+    else if (retval > 0)
+    {
         printk("Registered Device number Major: %d, Minor: %d\n", retval >> 20, retval & 0xfffff);
     }
-    else {
+    else
+    {
         printk("Could not register device number!\n");
         return -1;
     }
