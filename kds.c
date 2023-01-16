@@ -14,6 +14,12 @@
 #include <linux/namei.h>
 #include <linux/fdtable.h>
 
+#include <linux/blkdev.h>
+#include <linux/blk-mq.h>
+#include <linux/hdreg.h>
+#include <linux/cdrom.h>
+#include <linux/elevator.h>
+
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/pid.h>
@@ -472,8 +478,92 @@ int do_process(void)
     return 0;
 }
 
-void do_IO(void)
+// void dump_io_queue (void){
+
+//     struct request_queue q;
+//     struct request rq;
+
+//     printk ("Dumping I/0 queue:\n");
+
+//     spin_lock_irq(q.queue_lock);
+
+//     list_for_each_entry(&q, &blk_queue_list, queue_list)
+//     {
+//         printk ("Queue for device %s:\n", q.backing_dev_info-nrame):
+//          list_for_each_entry(&rq, &q.queue_head, queuelist)
+//          {
+//              printk("Request type: %d, sector: %lu\n", rq.cmd_type, blk_rq_pos(&rq));
+//          }
+//     }
+//                 spin_unlock_irq(q.queue_lock);
+//  }
+
+//     static void print_io_queue (struct request_queue *q) 
+// {
+//     struct blk_mq_hw_ctx *hctx;
+//     struct blk_mq_ctx *ctx;
+//      int i, j;
+
+//     printk ("Queue name: %s\n", q->request_fn->name) ;
+
+//     for (i = 0; i < q->nr_hw_queues; i++) {
+//          hctx = q->queue_hw_ctx[1];
+//         printk("Hardware queue %d:\n", i);
+//         printk("Dispatched: %lu\n", hctx->dispatched);
+//         printk("Running: %lu\n", hctx->run);
+
+//  for (j=0;j<hctx->nr_ctx; j++) {
+//     ctx =hctx->ctxs[j];
+//     printk("CPU %d:\n", ctx->cpu);
+//     printk("Enqueued: %lu\n", ctx->enqueued);
+//     printk("Active: %lu\n", ctx->active);
+//      }
+//  }
+// }
+
+static inline int init_tag_set(struct blk_mq_tag_set *set, void *data)
+{ 
+    //set->ops &mq_ops;
+    set->nr_hw_queues = 1;
+    set->nr_maps = 1;
+    set->queue_depth = 128;
+    set->numa_node = NUMA_NO_NODE;
+    set->flags = BLK_MQ_F_SHOULD_MERGE|BLK_MQ_F_STACKING;
+    set->cmd_size = 0;
+    set->driver_data= data;
+    return blk_mq_alloc_tag_set (set);
+}
+
+static void print_io_queue(struct request_queue *q)
 {
+    printk(KERN_INFO "Queue name: %s\n", q->kobj.name);
+    printk(KERN_INFO "Queue ID: %d\n", q->id);
+    printk(KERN_INFO "Queue depth: %d\n", q->nr_hw_queues);
+    // printk ("Queue requests in flight: %d\n", q->rq.count [BLK_RW_ASYNC]);
+}
+
+int do_IO(void)
+{    
+    struct blk_mq_tag_set tag_set;
+    int ret =init_tag_set(&tag_set, NULL);
+    struct request_queue *q = blk_mq_init_queue(&tag_set);
+
+    if (ret)
+    { 
+    pr_err("Failed to allocate tag set\n");
+    return -1;
+    }
+    
+    print_io_queue(q);
+    printk(KERN_INFO "Init works\n");
+    // if (!q) {
+    // return -ENOMEM;
+    // }
+     
+    // blk_mq_free_tag_set(&tag_set);
+    // blk_mq_destroy_queue(q);
+
+    return 0;
 }
 
 void showFiles(void)
